@@ -21,7 +21,7 @@
    1. GRAPH DATA
    rx, ry = relative [0..1] coordinates on the map image.
 ============================================================ */
-const NODES = {
+let NODES = {
   A: { id: 'A', name: 'Terminal Utama (Bandara)', rx: 0.500, ry: 0.365 },
   B: { id: 'B', name: 'Gudang Cargo',             rx: 0.340, ry: 0.735 },
   C: { id: 'C', name: 'Area Tengah / Akses Jalan',rx: 0.505, ry: 0.540 },
@@ -50,6 +50,53 @@ const GRAPH = {
   I: { H: 50  },
 };
 
+/* ============================================================
+   RANDOM MAP LAYOUTS
+   Preset posisi node agar map bisa berubah acak
+============================================================ */
+
+const MAP_LAYOUTS = [
+
+  // LAYOUT 1 (default)
+  {
+    A:{ rx:0.500, ry:0.365 },
+    B:{ rx:0.340, ry:0.735 },
+    C:{ rx:0.505, ry:0.540 },
+    D:{ rx:0.755, ry:0.230 },
+    E:{ rx:0.820, ry:0.350 },
+    F:{ rx:0.880, ry:0.450 },
+    G:{ rx:0.420, ry:0.295 },
+    H:{ rx:0.355, ry:0.250 },
+    I:{ rx:0.275, ry:0.215 },
+  },
+
+  // LAYOUT 2
+  {
+    A:{ rx:0.470, ry:0.390 },
+    B:{ rx:0.310, ry:0.700 },
+    C:{ rx:0.480, ry:0.560 },
+    D:{ rx:0.730, ry:0.260 },
+    E:{ rx:0.790, ry:0.390 },
+    F:{ rx:0.860, ry:0.490 },
+    G:{ rx:0.390, ry:0.330 },
+    H:{ rx:0.330, ry:0.280 },
+    I:{ rx:0.250, ry:0.240 },
+  },
+
+  // LAYOUT 3
+  {
+    A:{ rx:0.530, ry:0.340 },
+    B:{ rx:0.360, ry:0.760 },
+    C:{ rx:0.530, ry:0.520 },
+    D:{ rx:0.780, ry:0.210 },
+    E:{ rx:0.850, ry:0.330 },
+    F:{ rx:0.900, ry:0.430 },
+    G:{ rx:0.450, ry:0.270 },
+    H:{ rx:0.380, ry:0.220 },
+    I:{ rx:0.300, ry:0.190 },
+  }
+
+];
 /* ============================================================
    2. PRIORITY QUEUE (min-heap)
    Supports: enqueue(item, priority), dequeue(), isEmpty()
@@ -643,6 +690,30 @@ function hexToRgba(hex, alpha) {
 }
 
 /* ============================================================
+   RANDOMIZE MAP LAYOUT
+============================================================ */
+
+function randomizeMapLayout() {
+
+  const layout =
+    MAP_LAYOUTS[Math.floor(Math.random() * MAP_LAYOUTS.length)];
+
+    console.log("MAP RANDOMIZED");
+    console.log(layout);
+  // update posisi node TANPA mengubah struktur node
+  for (const [id, pos] of Object.entries(layout)) {
+
+    if (NODES[id]) {
+      NODES[id].rx = pos.rx;
+      NODES[id].ry = pos.ry;
+    }
+
+  }
+
+  renderAll();
+}
+
+/* ============================================================
    9. EVENT LISTENERS
 ============================================================ */
 
@@ -783,7 +854,11 @@ window.addEventListener('resize', resizeCanvas);
    10. INITIALIZATION
 ============================================================ */
 (function init() {
+
+  randomizeMapLayout();
+
   populateSelects();
-  resizeCanvas(); // also calls renderAll()
+  resizeCanvas();
   setStatus('Pilih titik awal dan akhir, lalu klik ENTER.', false);
+
 })();
