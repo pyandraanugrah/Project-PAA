@@ -312,7 +312,7 @@ function drawEdges(pathEdgeSet) {
         ctx.shadowColor = 'rgba(255,60,60,.5)';
         ctx.shadowBlur  = 7;
       } else {
-        ctx.strokeStyle = 'rgba(200,220,255,.28)';
+        ctx.strokeStyle = 'rgba(255,255,255,.55)';
         ctx.lineWidth   = 1.2;
         ctx.shadowBlur  = 0;
       }
@@ -323,10 +323,22 @@ function drawEdges(pathEdgeSet) {
       if (!isPath) {
         const mx = (a.x + b.x) / 2;
         const my = (a.y + b.y) / 2;
-        ctx.fillStyle    = 'rgba(160,210,255,.55)';
-        ctx.font         = '9px Rajdhani, sans-serif';
-        ctx.textAlign    = 'center';
+        ctx.fillStyle = 'rgba(255,255,255,0.98)';
+        ctx.font = 'bold 10px Rajdhani, sans-serif';
+        ctx.textAlign = 'center';
+
+        // outline hitam
+        ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+        ctx.lineWidth = 4;
+
+        // glow
+        ctx.shadowColor = 'black';
+        ctx.shadowBlur = 6;
+
+        ctx.strokeText(`${weight}m`, mx, my - 4);
         ctx.fillText(`${weight}m`, mx, my - 4);
+
+        ctx.shadowBlur = 0;
       }
     }
   }
@@ -393,7 +405,7 @@ function drawNodes(path, visitedUpToIndex) {
     const r       = hover ? 11 : 8;
 
     // Choose fill colour
-    let fill = '#1a4d6e';
+    let fill = '#ffffff';
     let glow = null;
 
     if      (isStart)  { fill = '#27ae60'; glow = '#27ae60'; }
@@ -424,14 +436,14 @@ function drawNodes(path, visitedUpToIndex) {
     ctx.stroke();
 
     // Node ID label (letter)
-    ctx.fillStyle    = '#ffffff';
+    ctx.fillStyle    = '#000000';
     ctx.font         = 'bold 11px "Bebas Neue", sans-serif';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(nid, pos.x, pos.y);
 
     // Short name label below node
-    ctx.fillStyle    = 'rgba(220,240,255,.6)';
+    ctx.fillStyle    = 'rgba(10,30,60,.85)';
     ctx.font         = '9px Rajdhani, sans-serif';
     ctx.textBaseline = 'top';
     ctx.fillText(node.name.split(' ')[0], pos.x, pos.y + r + 3);
@@ -492,7 +504,7 @@ function movePerson(px, py, angleDeg) {
   // Position: feet at (fx, fy), icon centred horizontally
   personEl.style.left = `${fx}px`;
   personEl.style.top  = `${fy}px`;
-  personEl.style.transform = `translate(-50%, -100%) rotate(${angleDeg}deg)`;
+  personEl.style.transform = `translate(-50%, -50%) rotate(${angleDeg}deg)`;
 }
 
 function showPerson()  { personEl.style.display = 'block'; }
@@ -616,7 +628,7 @@ function animationLoop(timestamp) {
 
   // Rotation: angle towards the next node
   const angleRad = Math.atan2(by - ay, bx - ax);
-  const angleDeg = (angleRad * 180 / Math.PI) + 90; // offset so "up" = forward
+  const angleDeg = (angleRad * 180 / Math.PI); // offset so "up" = forward
   animState.angle = angleDeg;
 
   // Update person DOM element

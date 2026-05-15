@@ -5,16 +5,16 @@
 
 /* --- RESET & ROOT VARIABLES --- */
 :root {
-  --bg0:    #061222;
-  --bg1:    #0d2035;
-  --bg2:    #123249;
-  --border: #1e4060;
-  --accent: #00c8f0;
-  --red:    #ff3c3c;
-  --gold:   #f5c842;
-  --green:  #27ae60;
-  --text:   #d8eaf8;
-  --muted:  #5a8aaa;
+  --bg0:    #dff0fb;
+  --bg1:    #eaf6fd;
+  --bg2:    #c5e5f5;
+  --border: #7dc4e8;
+  --accent: #0077b6;
+  --red:    #e63946;
+  --gold:   #e08c00;
+  --green:  #1a8c4e;
+  --text:   #0a2540;
+  --muted:  #2e6b99;
 }
 
 *, *::before, *::after {
@@ -74,9 +74,9 @@ html, body {
 #map-frame {
   flex: 1;
   position: relative;
-  border: 2px solid #2a4a65;
+  border: 2px solid #7dc4e8;
   overflow: hidden;
-  background: #0a1520;
+  background: #cce8f7;
 }
 
 /* Satellite image */
@@ -103,7 +103,7 @@ html, body {
   position: absolute;
   width: 36px;
   height: 54px;
-  transform: translate(-50%, -100%);
+  transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 20;
   display: none; /* shown when animation runs */
@@ -143,7 +143,7 @@ html, body {
   bottom: 8px;
   left: 8px;
   right: 8px;
-  background: rgba(6,18,34,.82);
+  background: rgba(223,240,251,.92);
   border: 1px solid var(--border);
   padding: 5px 12px;
   font-size: 11px;
@@ -230,8 +230,8 @@ html, body {
 }
 
 select.node-select {
-  background: var(--bg0);
-  border: 1px solid #3a6080;
+  background: #dff0fb;
+  border: 1px solid #7dc4e8;
   color: var(--text);
   font-family: 'Bebas Neue', sans-serif;
   font-size: 15px;
@@ -297,7 +297,7 @@ select.node-select {
 }
 
 #btn-enter {
-  background: #111;
+  background: #b8ddf5;
   color: var(--text);
   border: none;
   font-family: 'Bebas Neue', sans-serif;
@@ -310,7 +310,7 @@ select.node-select {
 }
 
 #btn-enter:hover {
-  background: #1a1a1a;
+  background: #9ccfee;
   color: var(--accent);
 }
 
