@@ -74,9 +74,9 @@ html, body {
 #map-frame {
   flex: 1;
   position: relative;
-  border: 2px solid #7dc4e8;
+  border: 2px solid #4a7a5a;
   overflow: hidden;
-  background: #cce8f7;
+  background: #3a5c35;
 }
 
 /* Satellite image */

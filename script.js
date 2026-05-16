@@ -323,17 +323,17 @@ function drawEdges(pathEdgeSet) {
       if (!isPath) {
         const mx = (a.x + b.x) / 2;
         const my = (a.y + b.y) / 2;
-        ctx.fillStyle = 'rgba(255,255,255,0.98)';
+        ctx.fillStyle = 'rgba(255,255,255,0.95)';
         ctx.font = 'bold 10px Rajdhani, sans-serif';
         ctx.textAlign = 'center';
 
         // outline hitam
-        ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+        ctx.strokeStyle = 'rgba(0,0,0,0.95)';
         ctx.lineWidth = 4;
 
         // glow
         ctx.shadowColor = 'black';
-        ctx.shadowBlur = 6;
+        ctx.shadowBlur = 8;
 
         ctx.strokeText(`${weight}m`, mx, my - 4);
         ctx.fillText(`${weight}m`, mx, my - 4);
@@ -443,25 +443,489 @@ function drawNodes(path, visitedUpToIndex) {
     ctx.fillText(nid, pos.x, pos.y);
 
     // Short name label below node
-    ctx.fillStyle    = 'rgba(10,30,60,.85)';
-    ctx.font         = '9px Rajdhani, sans-serif';
+    ctx.fillStyle    = 'rgba(220,235,255,.9)';
+    ctx.font         = 'bold 9px Rajdhani, sans-serif';
     ctx.textBaseline = 'top';
+    // text shadow for readability
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur  = 3;
     ctx.fillText(node.name.split(' ')[0], pos.x, pos.y + r + 3);
+    ctx.shadowBlur  = 0;
     ctx.textBaseline = 'alphabetic';
   }
 }
 
-/** Master render: clear → edges → path → nodes */
+/* ============================================================
+   BACKGROUND & ROAD RENDERER
+   Draws a procedural airport background and road network
+   directly onto the canvas — no external image needed.
+============================================================ */
+
+/**
+ * Draw a procedural satellite-style airport background.
+ * Layers: sky/ground base → terrain patches → runway → apron → buildings
+ */
+function drawBackground() {
+  const W = canvas.width;
+  const H = canvas.height;
+
+  /* ── 1. Base ground fill ── */
+  const groundGrad = ctx.createLinearGradient(0, 0, W, H);
+  groundGrad.addColorStop(0,   '#4a6741');
+  groundGrad.addColorStop(0.35,'#5c7a52');
+  groundGrad.addColorStop(0.6, '#3d5c35');
+  groundGrad.addColorStop(1,   '#2e4a28');
+  ctx.fillStyle = groundGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  /* ── 2. Terrain texture dots (subtle noise) ── */
+  ctx.save();
+  const rng = mulberry32(42); // deterministic "random"
+  for (let i = 0; i < 600; i++) {
+    const tx = rng() * W;
+    const ty = rng() * H;
+    const tr = rng() * 3 + 0.5;
+    ctx.beginPath();
+    ctx.arc(tx, ty, tr, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${rng() > 0.5 ? 80 : 30},${rng() > 0.5 ? 100 : 60},${rng() > 0.5 ? 50 : 20},${rng() * 0.18 + 0.04})`;
+    ctx.fill();
+  }
+  ctx.restore();
+
+  /* ── 3. Dense vegetation patches (top-left corner & edges) ── */
+  // Top-left forest area
+  drawPatch(ctx, [
+    {x:0,y:0},{x:W*0.22,y:0},{x:W*0.28,y:H*0.15},{x:W*0.18,y:H*0.45},
+    {x:W*0.05,y:H*0.55},{x:0,y:H*0.55}
+  ], '#2d5c24', '#3a7030', 0.92);
+
+  // Scattered tree clusters on that patch
+  const rng2 = mulberry32(99);
+  for (let i = 0; i < 120; i++) {
+    const bx = rng2() * W * 0.28;
+    const by = rng2() * H * 0.55;
+    if (bx < W * 0.28 - by * 0.35) {
+      drawTree(ctx, bx, by, rng2() * 5 + 3);
+    }
+  }
+
+  /* ── 4. Main RUNWAY (diagonal strip) ── */
+  // Runway: from top-right area diagonally to lower-left area
+  // Matches visual layout of Raja Haji Fisabilillah airport
+  //drawRunway(ctx, W, H);
+
+  /* ── 5. Taxiway ── */
+  //drawTaxiway(ctx, W, H);
+
+  /* ── 6. Apron / terminal area ── */
+  //drawApron(ctx, W, H);
+
+  /* ── 7. Terminal building silhouette ── */
+  drawBuildings(ctx, W, H);
+
+  /* ── 8. Perimeter fence line ── */
+  drawFence(ctx, W, H);
+
+  /* ── 9. Subtle vignette ── */
+  const vig = ctx.createRadialGradient(W/2,H/2, H*0.3, W/2,H/2, H*0.9);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.45)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+}
+
+/** Simple deterministic pseudo-random (Mulberry32) */
+function mulberry32(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/** Draw a filled polygon with a radial highlight */
+function drawPatch(ctx, pts, col1, col2, alpha) {
+  if (pts.length < 2) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
+  ctx.fillStyle = col1;
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Draw a small tree circle */
+function drawTree(ctx, x, y, r) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  const g = ctx.createRadialGradient(x - r*0.3, y - r*0.3, r*0.1, x, y, r);
+  g.addColorStop(0, '#5aad3f');
+  g.addColorStop(1, '#1e4a14');
+  ctx.fillStyle = g;
+  ctx.globalAlpha = 0.85;
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Draw the main runway diagonal strip */
+function drawRunway(ctx, W, H) {
+  ctx.save();
+
+  // Runway footprint — diagonal from ~top-right to bottom-left
+  const rx1 = W * 0.98, ry1 = H * 0.08;
+  const rx2 = W * 0.25, ry2 = H * 0.92;
+  const halfW = W * 0.045;
+
+  // Perpendicular offset vector
+  const dx = rx2 - rx1, dy = ry2 - ry1;
+  const len = Math.hypot(dx, dy);
+  const nx = -dy / len, ny = dx / len;
+
+  // Runway concrete base
+  ctx.beginPath();
+  ctx.moveTo(rx1 + nx*halfW, ry1 + ny*halfW);
+  ctx.lineTo(rx2 + nx*halfW, ry2 + ny*halfW);
+  ctx.lineTo(rx2 - nx*halfW, ry2 - ny*halfW);
+  ctx.lineTo(rx1 - nx*halfW, ry1 - ny*halfW);
+  ctx.closePath();
+  ctx.fillStyle = '#5a5a5c';
+  ctx.fill();
+
+  // Runway surface gradient (worn asphalt look)
+  const rGrad = ctx.createLinearGradient(rx1,ry1,rx2,ry2);
+  rGrad.addColorStop(0,   'rgba(80,80,85,0.9)');
+  rGrad.addColorStop(0.5, 'rgba(65,65,70,0.95)');
+  rGrad.addColorStop(1,   'rgba(80,80,85,0.9)');
+  ctx.beginPath();
+  ctx.moveTo(rx1 + nx*(halfW-2), ry1 + ny*(halfW-2));
+  ctx.lineTo(rx2 + nx*(halfW-2), ry2 + ny*(halfW-2));
+  ctx.lineTo(rx2 - nx*(halfW-2), ry2 - ny*(halfW-2));
+  ctx.lineTo(rx1 - nx*(halfW-2), ry1 - ny*(halfW-2));
+  ctx.closePath();
+  ctx.fillStyle = rGrad;
+  ctx.fill();
+
+  // Centre dashed line
+  ctx.setLineDash([W*0.025, W*0.015]);
+  ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+  ctx.lineWidth = Math.max(1.5, W * 0.002);
+  ctx.beginPath();
+  ctx.moveTo(rx1, ry1);
+  ctx.lineTo(rx2, ry2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Runway edge lines
+  ctx.strokeStyle = 'rgba(255,255,220,0.35)';
+  ctx.lineWidth = 1;
+  for (const side of [halfW * 0.85, -halfW * 0.85]) {
+    ctx.beginPath();
+    ctx.moveTo(rx1 + nx*side, ry1 + ny*side);
+    ctx.lineTo(rx2 + nx*side, ry2 + ny*side);
+    ctx.stroke();
+  }
+
+  // Threshold markings at each end
+  drawThreshold(ctx, rx1, ry1, nx, ny, halfW);
+  drawThreshold(ctx, rx2, ry2, nx, ny, halfW);
+
+  ctx.restore();
+}
+
+/** Draw runway threshold bars */
+function drawThreshold(ctx, cx, cy, nx, ny, hw) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.lineWidth = Math.max(1.5, hw * 0.06);
+  const barCount = 6;
+  const spacing  = (hw * 1.6) / barCount;
+  for (let b = -barCount/2; b < barCount/2; b++) {
+    const ox = nx * (b * spacing + spacing/2);
+    const oy = ny * (b * spacing + spacing/2);
+    ctx.beginPath();
+    ctx.moveTo(cx + ox - ny * hw*0.08, cy + oy + nx * hw*0.08);
+    ctx.lineTo(cx + ox + ny * hw*0.08, cy + oy - nx * hw*0.08);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** Draw taxiway connecting runway to apron */
+function drawTaxiway(ctx, W, H) {
+  ctx.save();
+  // Main taxiway parallel to runway, offset toward terminal
+  ctx.lineWidth = W * 0.022;
+  ctx.strokeStyle = '#4e4e52';
+  ctx.lineCap = 'round';
+
+  // Taxiway alpha: from mid-runway toward terminal building
+  ctx.beginPath();
+  ctx.moveTo(W * 0.72, H * 0.28);
+  ctx.quadraticCurveTo(W * 0.62, H * 0.32, W * 0.57, H * 0.40);
+  ctx.stroke();
+
+  // Taxiway centre line (yellow)
+  ctx.lineWidth = Math.max(1, W * 0.002);
+  ctx.strokeStyle = 'rgba(230,200,50,0.6)';
+  ctx.setLineDash([W*0.015, W*0.01]);
+  ctx.beginPath();
+  ctx.moveTo(W * 0.72, H * 0.28);
+  ctx.quadraticCurveTo(W * 0.62, H * 0.32, W * 0.57, H * 0.40);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Short connector
+  ctx.setLineDash([]);
+  ctx.lineWidth = W * 0.018;
+  ctx.strokeStyle = '#4e4e52';
+  ctx.beginPath();
+  ctx.moveTo(W * 0.57, H * 0.40);
+  ctx.lineTo(W * 0.53, H * 0.45);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/** Draw the apron (aircraft parking area) */
+function drawApron(ctx, W, H) {
+  ctx.save();
+
+  // Apron concrete pad
+  ctx.beginPath();
+  ctx.roundRect(W * 0.40, H * 0.28, W * 0.22, H * 0.30, 4);
+  ctx.fillStyle = '#7a7a80';
+  ctx.globalAlpha = 0.75;
+  ctx.fill();
+
+  // Apron surface detail lines (parking bays)
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 4; i++) {
+    const x = W * 0.42 + i * W * 0.048;
+    ctx.beginPath();
+    ctx.moveTo(x, H * 0.30);
+    ctx.lineTo(x, H * 0.54);
+    ctx.stroke();
+  }
+
+  // Aircraft silhouettes on apron
+  ctx.globalAlpha = 0.6;
+  
+
+  ctx.restore();
+}
+
+/** Draw a simple aircraft silhouette top-down */
+function drawAircraft(ctx, cx, cy, size) {
+  ctx.save();
+  ctx.fillStyle = '#c8c8cc';
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 0.5;
+
+  // Fuselage
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, size * 0.1, size * 0.5, -Math.PI*0.18, 0, Math.PI*2);
+  ctx.fill(); ctx.stroke();
+
+  // Wings
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + size * 0.05, size * 0.45, size * 0.07, -Math.PI*0.18, 0, Math.PI*2);
+  ctx.fill(); ctx.stroke();
+
+  // Tail
+  ctx.beginPath();
+  ctx.ellipse(cx - size*0.02, cy + size*0.4, size*0.18, size*0.04, -Math.PI*0.18, 0, Math.PI*2);
+  ctx.fill(); ctx.stroke();
+
+  ctx.restore();
+}
+
+/** Draw terminal & support buildings */
+function drawBuildings(ctx, W, H) {
+  ctx.save();
+
+  // Terminal building
+  const bx = W * 0.41, by = H * 0.27;
+  const bw = W * 0.14, bh = H * 0.12;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(bx + 4, by + 4, bw, bh);
+
+  // Base
+  ctx.fillStyle = '#a0a8b0';
+  ctx.fillRect(bx, by, bw, bh);
+
+  // Roof detail
+  const roofGrad = ctx.createLinearGradient(bx, by, bx+bw, by+bh);
+  roofGrad.addColorStop(0, '#b8c0c8');
+  roofGrad.addColorStop(1, '#787e85');
+  ctx.fillStyle = roofGrad;
+  ctx.fillRect(bx + 3, by + 3, bw - 6, bh - 6);
+
+  // Windows strip
+  ctx.fillStyle = 'rgba(160,200,240,0.6)';
+  ctx.fillRect(bx + 6, by + bh*0.25, bw - 12, bh * 0.25);
+
+  // BMKG building (node D area)
+  drawSmallBuilding(ctx, W * 0.74, H * 0.18, W * 0.06, H * 0.10, '#9aa0a8');
+
+  // Airnav building (node F area)
+  drawSmallBuilding(ctx, W * 0.86, H * 0.40, W * 0.05, H * 0.08, '#8a9098');
+
+  // Engku Puteri building (node E area)
+  drawSmallBuilding(ctx, W * 0.80, H * 0.31, W * 0.055, H * 0.09, '#929aa2');
+
+  // Cargo building
+  drawSmallBuilding(ctx, W * 0.30, H * 0.68, W * 0.08, H * 0.10, '#88888e');
+
+  ctx.restore();
+}
+
+function drawSmallBuilding(ctx, x, y, w, h, col) {
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(x + 3, y + 3, w, h);
+  ctx.fillStyle = col;
+  ctx.fillRect(x, y, w, h);
+  const g = ctx.createLinearGradient(x, y, x+w, y+h);
+  g.addColorStop(0, 'rgba(255,255,255,0.15)');
+  g.addColorStop(1, 'rgba(0,0,0,0.1)');
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, w, h);
+}
+
+/** Draw airport perimeter fence */
+function drawFence(ctx, W, H) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(180,190,200,0.25)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  // Rough perimeter around airfield
+  ctx.moveTo(W * 0.22, H * 0.05);
+  ctx.lineTo(W * 0.98, H * 0.05);
+  ctx.lineTo(W * 0.98, H * 0.90);
+  ctx.lineTo(W * 0.22, H * 0.90);
+  ctx.lineTo(W * 0.22, H * 0.05);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+/* ============================================================
+   ROAD NETWORK RENDERER
+   Draws roads that connect the graph nodes visually,
+   as actual road segments with lanes and markings.
+============================================================ */
+
+/**
+ * Draw the airport road network before the graph edges.
+ * Roads follow the same topology as GRAPH edges.
+ */
+function drawRoads() {
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // Road segments to draw: same as GRAPH edges but only once each
+  const drawn = new Set();
+  for (const [nid, neighbors] of Object.entries(GRAPH)) {
+    for (const [neighborId] of Object.entries(neighbors)) {
+      if (nid >= neighborId) continue;
+      const key = `${nid}-${neighborId}`;
+      if (drawn.has(key)) continue;
+      drawn.add(key);
+
+      const a = toPx(NODES[nid].rx, NODES[nid].ry);
+      const b = toPx(NODES[neighborId].rx, NODES[neighborId].ry);
+
+      drawRoadSegment(ctx, a.x, a.y, b.x, b.y, W);
+    }
+  }
+}
+
+/** Draw a single road segment with asphalt, kerbs, and centre line */
+function drawRoadSegment(ctx, x1, y1, x2, y2, W) {
+  const roadWidth = Math.max(6, W * 0.012);
+
+  ctx.save();
+
+  // Road shadow/depth
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = roadWidth + 3;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  // Road surface (asphalt)
+  ctx.strokeStyle = '#2a2a2e';
+  ctx.lineWidth = roadWidth;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  // Road surface highlight (worn centre)
+  ctx.strokeStyle = 'rgba(60,60,65,0.7)';
+  ctx.lineWidth = roadWidth * 0.55;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  // Kerb/edge lines
+  ctx.strokeStyle = 'rgba(200,200,180,0.3)';
+  ctx.lineWidth = 1;
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  if (len > 0) {
+    const nx = -dy / len, ny = dx / len;
+    const off = roadWidth * 0.52;
+    for (const s of [1, -1]) {
+      ctx.beginPath();
+      ctx.moveTo(x1 + nx*off*s, y1 + ny*off*s);
+      ctx.lineTo(x2 + nx*off*s, y2 + ny*off*s);
+      ctx.stroke();
+    }
+  }
+
+  // Centre dashed line
+  ctx.strokeStyle = 'rgba(255,220,50,0.45)';
+  ctx.lineWidth = Math.max(0.8, W * 0.0015);
+  ctx.setLineDash([W * 0.018, W * 0.012]);
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.restore();
+}
+
+/** Master render: clear → background → roads → edges → path → nodes */
 function renderAll() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 1. Procedural airport background
+  drawBackground();
+
+  // 2. Road network (visual roads along graph edges)
+  drawRoads();
 
   const path         = viewState.path;
   const pathEdgeSet  = buildPathEdgeSet(path);
 
-  // Draw edges (with path highlight)
+  // 3. Draw graph edges (with path highlight)
   drawEdges(pathEdgeSet);
 
-  // Draw path line
+  // 4. Draw path line
   if (animState.active || animState.paused || animState.done) {
     drawAnimatedPath(path, animState.segFrac);
   } else if (path.length > 1) {
@@ -469,7 +933,7 @@ function renderAll() {
     drawAnimatedPath(path, path.length);
   }
 
-  // Draw nodes
+  // 5. Draw nodes
   const visitedIdx = (animState.active || animState.paused || animState.done)
     ? Math.floor(animState.segFrac)
     : (path.length ? 999 : 0);
